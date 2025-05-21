@@ -3,6 +3,7 @@
 #include <SDL3/SDL_render.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <SDL3/SDL_ttf.h>
 
 struct Puzzle
 {
@@ -28,9 +29,19 @@ struct Board
 
 // rysowanie przycisków na oknie wejsciowym
 
-const SDL_FRect buttonRect = {150.0f, 120.0f, 100.0f, 50.0f};
+bool inMainMenu = true;
+bool inGame = false;
 
-void DrawButton(SDL_Renderer *renderer, SDL_FRect *rect, bool hovered, bool pressed)
+const SDL_FRect buttonNewGame = {300.0f, 200.0f, 200.0f, 60.0f};
+const SDL_FRect buttonContinue = {300.0f, 290.0f, 200.0f, 60.0f};
+const SDL_FRect buttonExit = {700.0f, 20.0f, 80.0f, 60.0f};
+
+bool isPointInRect(float x, float y, const SDL_FRect *rect)
+{
+    return (x >= rect->x && x <= rect->x + rect->w && y >= rect->y && y <= rect->y + rect->h);
+}
+
+void DrawButton(SDL_Renderer *renderer, const SDL_FRect *rect, bool hovered, bool pressed)
 {
     if (pressed || hovered)
     {
@@ -41,13 +52,30 @@ void DrawButton(SDL_Renderer *renderer, SDL_FRect *rect, bool hovered, bool pres
         SDL_SetRenderDrawColor(renderer, 30, 19, 237, 200);
     }
 
-    SDL_RenderFillRectF(renderer, rect); // te dwie chat trzy razu chyba zmineniał ale nadal nie jestem pewien czy są dobrze bo warningi cały czas sie wyswietlają
+    SDL_RenderFillRectF(renderer, rect);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderDrawRectF(renderer, rect); //
+    SDL_RenderDrawRectF(renderer, rect);
+}
+
+void DrawText(SDL_Renderer* renderer, TTF_Font* font, const char* text, float x, float y){
+    SDL_Color color = {255,255,255,255};
+    SDL_Surface* surface = TTF_RenderText_Solid(font, text, color)
 }
 
 int main(void)
 {
+    if (TTF_Init() < 0)
+    {
+        SDL_Log("TTF_Init error: %s", SDL_GetError());
+        return 1;
+    }
+    TTF_Font *font = TTF_OpenFont("Roboto-Regular.ttf", 24);
+    if (!font)
+    {
+        SDL_Log("Font loading error: %s", SDL_GetError());
+        return 1;
+    }
+
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Window *win = SDL_CreateWindow("Puzzle", 800, 600, 0);
     if (!win)
@@ -71,9 +99,29 @@ int main(void)
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
-            switch (event.type)
+            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
             {
-            case SDL_EVENT_QUIT:
+                float mouseX = event.button.x;
+                float mouseY = event.button.y;
+
+                if (isPointInRect(mouseX, mouseY, &buttonNewGame))
+                {
+                    inMainMenu = false;
+                    inGame = true;
+                }
+                if (isPointInRect(mouseX, mouseY, &buttonContinue))
+                {
+                    SDL_Log("Kliknieto kontynuuj");
+                }
+                if (isPointInRect(mouseX, mouseY, &buttonExit))
+                {
+                    inMainMenu = true;
+                    inGame = false;
+                }
+            }
+
+            if (event.type == SDL_EVENT_QUIT)
+            {
                 gameRunning = false;
                 break;
             }
@@ -82,11 +130,22 @@ int main(void)
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // czarne tło
         SDL_RenderClear(renderer);
 
-        DrawButton(renderer, &buttonRect, false, false); // przycisk
-
+        // wybór widoku
+        if (inMainMenu)
+        {
+            DrawButton(renderer, &buttonNewGame, false, false);
+            DrawButton(renderer, &buttonContinue, false, false);
+        }
+        else if (inGame)
+        {
+            DrawButton(renderer, &buttonExit, false, false);
+            SDL_SetRenderDrawColor(renderer, 100, 150, 200, 255);
+            SDL_FRect board = {100.0f, 100.0f, 600.0f, 400.0f};
+            SDL_RenderFillRectF(renderer, &board);
+        }
         SDL_RenderPresent(renderer);
     }
-    SDL_Log("SDL version: %d.%d.%d", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL); // logów nie widać w terminalu
+    SDL_Log("SDL version: %d.%d.%d", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL);
     SDL_Delay(2000);
     SDL_DestroyWindow(win);
     SDL_DestroyRenderer(renderer);
