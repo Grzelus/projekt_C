@@ -4,30 +4,29 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <SDL3/SDL_ttf.h>
+#include <SDL3/SDL_image.h>
 
-struct Puzzle
+#define PUZZLE_COLS 3
+#define PUZZLE_ROWS 2
+#define TILE_COUNT (PUZZLE_ROWS * PUZZLE_COLS)
+
+#define PUZZLE_IMG_WIDTH 600
+#define PUZZLE_IMG_HEIGHT 400
+
+#define PUZZLE_START_X 100
+#define PUZZLE_START_Y 100
+
+typedef struct
 {
-    bool whichBoard;
-    int actualPosition;
-    int startPosition;
-    int destination;
-    // image ;  do wyszukania
-};
+    SDL_FRect srcRect;
+    SDL_FRect dstRect;
+    bool dragging;
+    float offsetX, offsetY;
+} PuzzlePiece;
 
-struct Board
-{
-    int widthOfBoard;
-    int heightOfBoard;
-    // int TableOfPositions[heightOfBoard][widthOfBoard][2];
-    // image
-};
+PuzzlePiece puzzlePieces[TILE_COUNT];
 
-/*struct resetButton
-{
-
-};*/
-
-// rysowanie przycisków na oknie wejsciowym
+// zmienne
 
 bool inMainMenu = true;
 bool inGame = false;
@@ -36,12 +35,48 @@ const SDL_FRect buttonNewGame = {300.0f, 200.0f, 200.0f, 60.0f};
 const SDL_FRect buttonContinue = {300.0f, 290.0f, 200.0f, 60.0f};
 const SDL_FRect buttonExit = {700.0f, 20.0f, 80.0f, 60.0f};
 
+// funkcje
+
+void initPuzzle()
+{
+    int tileWidth = PUZZLE_IMG_WIDTH / PUZZLE_COLS;
+    int tileHeight = PUZZLE_IMG_HEIGHT / PUZZLE_ROWS;
+
+    int index = 0;
+    for (int row = 0; row < PUZZLE_ROWS; row++)
+    {
+        for (int col = 0; col < PUZZLE_COLS; col++)
+        {
+            puzzlePieces[index].srcRect.x = col * tileWidth;
+            puzzlePieces[index].srcRect.y = row * tileHeight;
+            puzzlePieces[index].srcRect.w = tileWidth;
+            puzzlePieces[index].srcRect.h = tileHeight;
+
+            puzzlePieces[index].dstRect.x = PUZZLE_START_X + col * (tileWidth + 5);
+            puzzlePieces[index].dstRect.y = PUZZLE_START_Y + row * (tileHeight + 5);
+            puzzlePieces[index].dstRect.w = tileWidth;
+            puzzlePieces[index].dstRect.h = tileHeight;
+
+            puzzlePieces[index].dragging = false;
+            index++;
+        }
+    }
+}
+
+void drawPuzzle(SDL_Renderer *renderer, SDL_Texture *image)
+{
+    for (int i = 0; i < TILE_COUNT; i++)
+    {
+        SDL_RenderCopyF(renderer, image, &puzzlePieces[i].srcRect, &puzzlePieces[i].dstRect);
+    }
+}
+
 bool isPointInRect(float x, float y, const SDL_FRect *rect)
 {
     return (x >= rect->x && x <= rect->x + rect->w && y >= rect->y && y <= rect->y + rect->h);
 }
 
-void DrawButton(SDL_Renderer *renderer, const SDL_FRect *rect, bool hovered, bool pressed)
+void DrawButton(SDL_Renderer *renderer, TTF_Font *font, const SDL_FRect *rect, const char *label, bool hovered, bool pressed)
 {
     if (pressed || hovered)
     {
@@ -49,21 +84,68 @@ void DrawButton(SDL_Renderer *renderer, const SDL_FRect *rect, bool hovered, boo
     }
     else
     {
-        SDL_SetRenderDrawColor(renderer, 30, 19, 237, 200);
+        SDL_SetRenderDrawColor(renderer, 255, 19, 237, 200);
     }
 
     SDL_RenderFillRectF(renderer, rect);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderDrawRectF(renderer, rect);
+
+    SDL_Color color = {255, 255, 255, 255};
+    SDL_Surface *surface = TTF_RenderText_Solid(font, label, strlen(label), color);
+    if (!surface)
+        return;
+
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+    if (!texture)
+    {
+        SDL_DestroySurface(surface);
+        return;
+    }
+
+    SDL_FRect dst;
+    dst.w = (float)surface->w;
+    dst.h = (float)surface->h;
+    dst.x = rect->x + (rect->w - dst.w) / 2.0f;
+    dst.y = rect->y + (rect->h - dst.h) / 2.0f;
+
+    SDL_RenderCopyF(renderer, texture, NULL, &dst);
+
+    SDL_DestroyTexture(texture);
+    SDL_DestroySurface(surface);
 }
 
-void DrawText(SDL_Renderer* renderer, TTF_Font* font, const char* text, float x, float y){
-    SDL_Color color = {255,255,255,255};
-    SDL_Surface* surface = TTF_RenderText_Solid(font, text, color)
-}
+// void DrawText(SDL_Renderer *renderer, TTF_Font *font, const char *text, float x, float y)
+// {
+//     SDL_Color color = {255, 255, 255, 255};
+//     SDL_Surface *surface = TTF_RenderText_Solid(font, text, strlen(text), color);
+//     if (!surface)
+//     {
+//         SDL_Log("RenderText Error: %s", SDL_GetError());
+//         return;
+//     }
+
+//     SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+//     if (!texture)
+//     {
+//         SDL_DestroySurface(surface);
+//         return;
+//     }
+
+//     SDL_FRect dst = {x, y, (float)surface->w, (float)surface->h};
+//     SDL_RenderCopyF(renderer, texture, NULL, &dst);
+
+//     SDL_DestroyTexture(texture);
+//     SDL_DestroySurface(surface);
+// }
+
+// główna funkcja
 
 int main(void)
 {
+    initPuzzle();
+    // błędy
+
     if (TTF_Init() < 0)
     {
         SDL_Log("TTF_Init error: %s", SDL_GetError());
@@ -93,9 +175,23 @@ int main(void)
         return -2;
     }
 
+    SDL_Texture *image = IMG_LoadTexture(renderer, "puzzle.png");
+    if (!image)
+    {
+        SDL_Log("Nie udało się załadować obrazka: %d", SDL_GetError());
+        return 1;
+    }
+    // gra
     bool gameRunning = true;
     while (gameRunning)
     {
+        float mouseX = 0, mouseY = 0;
+        SDL_GetMouseState(&mouseX, &mouseY);
+
+        bool hoverNewGame = isPointInRect(mouseX, mouseY, &buttonNewGame);
+        bool hoverContinue = isPointInRect(mouseX, mouseY, &buttonContinue);
+        bool hoverExit = isPointInRect(mouseX, mouseY, &buttonExit);
+        // obsługa event'ów
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
@@ -133,15 +229,13 @@ int main(void)
         // wybór widoku
         if (inMainMenu)
         {
-            DrawButton(renderer, &buttonNewGame, false, false);
-            DrawButton(renderer, &buttonContinue, false, false);
+            DrawButton(renderer, font, &buttonNewGame, "Nowa gra", hoverNewGame, false);
+            DrawButton(renderer, font, &buttonContinue, "Kontynuuj", hoverContinue, false);
         }
         else if (inGame)
         {
-            DrawButton(renderer, &buttonExit, false, false);
-            SDL_SetRenderDrawColor(renderer, 100, 150, 200, 255);
-            SDL_FRect board = {100.0f, 100.0f, 600.0f, 400.0f};
-            SDL_RenderFillRectF(renderer, &board);
+            DrawButton(renderer, font, &buttonExit, "X", hoverExit, false);
+            drawPuzzle(renderer, image);
         }
         SDL_RenderPresent(renderer);
     }
