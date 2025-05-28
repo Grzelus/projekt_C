@@ -262,17 +262,6 @@ int main(void)
                 }
             }
 
-            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && inGame)
-            {
-                float mouseX = event.button.x;
-                float mouseY = event.button.y;
-
-                if (isPointInRect(mouseX, mouseY, &buttonExit))
-                {
-                    inMainMenu = true;
-                    inGame = false;
-                }
-            }
         }
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // czarne tło
@@ -290,41 +279,6 @@ int main(void)
             drawPuzzle(renderer, image);
         }
         SDL_RenderPresent(renderer);
-
-        if (inGame && event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
-        {
-            float mx = event.button.x;
-            float my = event.button.y;
-
-            for (int i = TILE_COUNT - 1; i >= 0; i--)
-            {
-                SDL_FRect *rect = &puzzlePieces[i].dstRect;
-                if (isPointInRect(mx, my, rect))
-                {
-                    puzzlePieces[i].dragging = true;
-                    puzzlePieces[i].offsetX = mx - rect->x;
-                    puzzlePieces[i].offsetY = my - rect->y;
-                    selectedPiece = i;
-                    break;
-                }
-            }
-        }
-        if (event.type == SDL_EVENT_MOUSE_MOTION && selectedPiece != -1)
-        {
-            if (puzzlePieces[selectedPiece].dragging)
-            {
-                float mx = event.motion.x;
-                float my = event.motion.y;
-
-                puzzlePieces[selectedPiece].dstRect.x = mx - puzzlePieces[selectedPiece].offsetX;
-                puzzlePieces[selectedPiece].dstRect.y = my - puzzlePieces[selectedPiece].offsetY;
-            }
-        }
-        if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && selectedPiece != -1)
-        {
-            puzzlePieces[selectedPiece].dragging = false;
-            selectedPiece = -1;
-        }
     }
     SDL_Log("SDL version: %d.%d.%d", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL);
     SDL_Delay(2000);
