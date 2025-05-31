@@ -1,12 +1,13 @@
 #define SDL_ENABLE_OLD_NAMES
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_render.h>
+#include <SDL3/SDL_ttf.h>
+#include <SDL3/SDL_image.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
-#include <SDL3/SDL_ttf.h>
-#include <SDL3/SDL_image.h>
+#include <math.h>
 
 //wymiary obrazka
 #define PUZZLE_COLS 3
@@ -32,6 +33,7 @@ typedef struct
     SDL_FRect dstRect;
     bool dragging;
     float offsetX, offsetY;
+    float winX,winY;
 } PuzzlePiece;
 
 PuzzlePiece puzzlePieces[TILE_COUNT];
@@ -87,9 +89,10 @@ void initPuzzle()
             puzzlePieces[index].srcRect.w = TILE_WIDTH;
             puzzlePieces[index].srcRect.h = TILE_HEIGHT;
 
-            //destination
-            //puzzlePieces[index].dstRect.x = PUZZLE_START_X + col * (tileWidth + 5);
-           // puzzlePieces[index].dstRect.y = PUZZLE_START_Y + row * (tileHeight + 5);
+            //winning destination
+            puzzlePieces[index].winX = PUZZLE_START_X + col * (TILE_WIDTH );
+            puzzlePieces[index].winY = PUZZLE_START_Y + row * (TILE_HEIGHT );
+            //start destination
            random_coords(&puzzlePieces[index].dstRect.x, &puzzlePieces[index].dstRect.y);
             puzzlePieces[index].dstRect.w = TILE_WIDTH;
             puzzlePieces[index].dstRect.h = TILE_HEIGHT;
@@ -199,8 +202,14 @@ void DrawButton(SDL_Renderer *renderer, TTF_Font *font, const SDL_FRect *rect, c
 //     SDL_DestroySurface(surface);
 // }
 
-// główna funkcja
+//oddalenie od celu
+bool IfCanSnap(float WinX, float WinY, float ActualX,float ActualY){
+ //   SDL_Log("%f",sqrt(pow(WinX-ActualX,2)+pow(WinY-ActualY,2)));
+    return sqrt(pow(WinX-ActualX,2)+pow(WinY-ActualY,2))<20;
+}
 
+
+//główna funkcja
 int main(void)
 {
 
@@ -298,7 +307,15 @@ int main(void)
                 if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && selectedPiece != -1)
                 {
                     puzzlePieces[selectedPiece].dragging = false;
+
+                    //snap na właściwe miejsce
+                    if(IfCanSnap(puzzlePieces[selectedPiece].winX,puzzlePieces[selectedPiece].winY,puzzlePieces[selectedPiece].dstRect.x,puzzlePieces[selectedPiece].dstRect.y)){
+                        puzzlePieces[selectedPiece].dstRect.x = puzzlePieces[selectedPiece].winX;
+                        puzzlePieces[selectedPiece].dstRect.y = puzzlePieces[selectedPiece].winY;
+                    }
+
                     selectedPiece = -1;
+
                 }
             }
 
