@@ -3,18 +3,28 @@
 #include <SDL3/SDL_render.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <time.h>
+#include <stdlib.h>
 #include <SDL3/SDL_ttf.h>
 #include <SDL3/SDL_image.h>
 
+//wymiary obrazka
 #define PUZZLE_COLS 3
 #define PUZZLE_ROWS 2
-#define TILE_COUNT (PUZZLE_ROWS * PUZZLE_COLS)
-
 #define PUZZLE_IMG_WIDTH 600
 #define PUZZLE_IMG_HEIGHT 400
 
+//koordynaty obrazka
 #define PUZZLE_START_X 100
 #define PUZZLE_START_Y 100
+
+//wymiary puzzla
+#define TILE_COUNT (PUZZLE_ROWS * PUZZLE_COLS)
+#define TILE_WIDTH (PUZZLE_IMG_WIDTH / PUZZLE_COLS)
+#define TILE_HEIGHT (PUZZLE_IMG_HEIGHT / PUZZLE_ROWS)
+
+//wymiary planszy
+#define BORDER WIDTH 5
 
 typedef struct
 {
@@ -32,38 +42,79 @@ int selectedPiece = -1;
 bool inMainMenu = true;
 bool inGame = false;
 
+//kwadrat plansza
+const SDL_FRect BoardDestiny={PUZZLE_START_X,PUZZLE_START_Y,PUZZLE_IMG_WIDTH,PUZZLE_IMG_HEIGHT}; 
+
+// wymiary i pozycje przycisków
 const SDL_FRect buttonNewGame = {300.0f, 200.0f, 200.0f, 60.0f};
 const SDL_FRect buttonContinue = {300.0f, 290.0f, 200.0f, 60.0f};
 const SDL_FRect buttonExit = {700.0f, 20.0f, 80.0f, 60.0f};
 
 // funkcje
 
+
+//losowanie liczby
+float random_float_in_range(float min, float max) {
+    if (min > max) {
+        float temp = min;
+        min = max;
+        max = temp;
+    }
+    float scale = rand() / (float) RAND_MAX; 
+    return min + scale * (max - min);
+}
+//losowanie koordynatów
+void random_coords(float* outX, float* outY) {
+    // Randomly pick range for x
+    *outX = random_float_in_range(100.0f, 600.0f);
+    // Randomly pick range for y
+    *outY = random_float_in_range(100.0f, 400.0f);
+
+}
+//początkowe położenie puzzli 
 void initPuzzle()
 {
-    int tileWidth = PUZZLE_IMG_WIDTH / PUZZLE_COLS;
-    int tileHeight = PUZZLE_IMG_HEIGHT / PUZZLE_ROWS;
-
     int index = 0;
     for (int row = 0; row < PUZZLE_ROWS; row++)
     {
         for (int col = 0; col < PUZZLE_COLS; col++)
         {
-            puzzlePieces[index].srcRect.x = col * tileWidth;
-            puzzlePieces[index].srcRect.y = row * tileHeight;
-            puzzlePieces[index].srcRect.w = tileWidth;
-            puzzlePieces[index].srcRect.h = tileHeight;
+            //co powinno być
+            
+            //textura
+            puzzlePieces[index].srcRect.x = col * TILE_WIDTH;
+            puzzlePieces[index].srcRect.y = row * TILE_HEIGHT;
+            puzzlePieces[index].srcRect.w = TILE_WIDTH;
+            puzzlePieces[index].srcRect.h = TILE_HEIGHT;
 
-            puzzlePieces[index].dstRect.x = PUZZLE_START_X + col * (tileWidth + 5);
-            puzzlePieces[index].dstRect.y = PUZZLE_START_Y + row * (tileHeight + 5);
-            puzzlePieces[index].dstRect.w = tileWidth;
-            puzzlePieces[index].dstRect.h = tileHeight;
+            //destination
+            //puzzlePieces[index].dstRect.x = PUZZLE_START_X + col * (tileWidth + 5);
+           // puzzlePieces[index].dstRect.y = PUZZLE_START_Y + row * (tileHeight + 5);
+           random_coords(&puzzlePieces[index].dstRect.x, &puzzlePieces[index].dstRect.y);
+            puzzlePieces[index].dstRect.w = TILE_WIDTH;
+            puzzlePieces[index].dstRect.h = TILE_HEIGHT;
 
+            //przenoszenie puzzla
             puzzlePieces[index].dragging = false;
+            //kolejny puzzle
             index++;
         }
     }
 }
 
+//rysuj tablice
+void drawBoard(SDL_Renderer *renderer, const SDL_FRect *rect)
+{
+    //wypełnienie
+    SDL_SetRenderDrawColor(renderer,4,184,76,200);
+    SDL_RenderFillRectF(renderer, rect);
+    //obwódka
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderDrawRectF(renderer, rect);
+
+}
+
+//rysuj puzzle
 void drawPuzzle(SDL_Renderer *renderer, SDL_Texture *image)
 {
     for (int i = 0; i < TILE_COUNT; i++)
@@ -77,6 +128,7 @@ bool isPointInRect(float x, float y, const SDL_FRect *rect)
     return (x >= rect->x && x <= rect->x + rect->w && y >= rect->y && y <= rect->y + rect->h);
 }
 
+//narysuj przycisk
 void DrawButton(SDL_Renderer *renderer, TTF_Font *font, const SDL_FRect *rect, const char *label, bool hovered, bool pressed)
 {
     if (pressed || hovered)
@@ -89,7 +141,7 @@ void DrawButton(SDL_Renderer *renderer, TTF_Font *font, const SDL_FRect *rect, c
     }
 
     SDL_RenderFillRectF(renderer, rect);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderDrawRectF(renderer, rect);
 
     SDL_Color color = {255, 255, 255, 255};
@@ -144,6 +196,7 @@ void DrawButton(SDL_Renderer *renderer, TTF_Font *font, const SDL_FRect *rect, c
 
 int main(void)
 {
+
     initPuzzle();
     // błędy
 
@@ -152,7 +205,7 @@ int main(void)
         SDL_Log("TTF_Init error: %s", SDL_GetError());
         return 1;
     }
-    TTF_Font *font = TTF_OpenFont("Roboto-Regular.ttf", 24);
+    TTF_Font *font = TTF_OpenFont("build/Roboto-Regular.ttf", 24);
     if (!font)
     {
         SDL_Log("Font loading error: %s", SDL_GetError());
@@ -176,7 +229,7 @@ int main(void)
         return -2;
     }
 
-    SDL_Texture *image = IMG_LoadTexture(renderer, "puzzle.png");
+    SDL_Texture *image = IMG_LoadTexture(renderer, "build/puzzle.png");
     if (!image)
     {
         SDL_Log("Nie udało się załadować obrazka: %d", SDL_GetError());
@@ -276,6 +329,7 @@ int main(void)
         else if (inGame)
         {
             DrawButton(renderer, font, &buttonExit, "X", hoverExit, false);
+            drawBoard(renderer, &BoardDestiny);
             drawPuzzle(renderer, image);
         }
         SDL_RenderPresent(renderer);
