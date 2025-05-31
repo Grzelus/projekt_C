@@ -108,9 +108,16 @@ void drawBoard(SDL_Renderer *renderer, const SDL_FRect *rect)
     //wypełnienie
     SDL_SetRenderDrawColor(renderer,4,184,76,200);
     SDL_RenderFillRectF(renderer, rect);
-    //obwódka
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    SDL_RenderDrawRectF(renderer, rect);
+
+    SDL_SetRenderDrawColor(renderer,255,255,255,255);
+    // Rysowanie pionowych linii siatki co wysokość kafelka
+    for (int x = PUZZLE_START_X; x <= PUZZLE_START_X+PUZZLE_IMG_WIDTH; x += TILE_WIDTH) {
+       SDL_RenderDrawLine(renderer, x, PUZZLE_START_Y, x, PUZZLE_IMG_HEIGHT+PUZZLE_START_Y);
+    }
+    // Rysowanie poziomych linii siatki co długość kafelka
+    for (int y = PUZZLE_START_Y; y <= PUZZLE_IMG_HEIGHT+PUZZLE_START_Y; y += TILE_HEIGHT) {
+        SDL_RenderDrawLine(renderer, PUZZLE_START_X, y, PUZZLE_START_X+PUZZLE_IMG_WIDTH, y);
+    }
 
 }
 
