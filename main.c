@@ -31,9 +31,10 @@ typedef struct
 {
     SDL_FRect srcRect;
     SDL_FRect dstRect;
-    bool dragging;
+    bool dragging, locked;
     float offsetX, offsetY;
     float winX,winY;
+
 } PuzzlePiece;
 
 PuzzlePiece puzzlePieces[TILE_COUNT];
@@ -51,6 +52,7 @@ const SDL_FRect BoardDestiny={PUZZLE_START_X,PUZZLE_START_Y,PUZZLE_IMG_WIDTH,PUZ
 const SDL_FRect buttonNewGame = {300.0f, 200.0f, 200.0f, 60.0f};
 const SDL_FRect buttonContinue = {300.0f, 290.0f, 200.0f, 60.0f};
 const SDL_FRect buttonExit = {700.0f, 20.0f, 80.0f, 60.0f};
+const SDL_FRect labelWin = {0.0f,0.0f,600.0f,200.0f}; 
 
 // funkcje
 
@@ -99,6 +101,7 @@ void initPuzzle()
 
             //przenoszenie puzzla
             puzzlePieces[index].dragging = false;
+            puzzlePieces[index].locked=false;
             //kolejny puzzle
             index++;
         }
@@ -177,6 +180,44 @@ void DrawButton(SDL_Renderer *renderer, TTF_Font *font, const SDL_FRect *rect, c
     SDL_DestroyTexture(texture);
     SDL_DestroySurface(surface);
 }
+//jeszcze nie działa
+void DrawLabel(SDL_Renderer *renderer, TTF_Font *font, const SDL_FRect *rect, const char *label)
+{
+    // Ustaw kolor tła etykiety
+    SDL_SetRenderDrawColor(renderer, 61, 209, 217, 220);
+    SDL_RenderFillRectF(renderer, rect);
+
+    // Ustaw kolor ramki etykiety
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderDrawRectF(renderer, rect);
+
+    // Ustaw kolor tekstu
+    SDL_Color color = {0, 0, 0, 255}; // Czarny kolor
+    SDL_Surface *surface = TTF_RenderText_Solid(font, label,strlen(label), color); // Poprawione: usunięcie strlen
+    if (!surface)
+        return;
+
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+    if (!texture)
+    {
+        SDL_DestroySurface(surface);
+        return;
+    }
+
+    // Obliczanie pozycji tekstu
+    SDL_FRect dst;
+    dst.w = (float)surface->w;
+    dst.h = (float)surface->h;
+    dst.x = rect->x + (rect->w - dst.w) / 2.0f; // Wyśrodkowanie w poziomie
+    dst.y = rect->y + (rect->h - dst.h) / 2.0f; // Wyśrodkowanie w pionie
+
+    // Rysowanie tekstu
+    SDL_RenderCopyF(renderer, texture, NULL, &dst);
+
+    // Zwalnianie zasobów
+    SDL_DestroyTexture(texture);
+    SDL_DestroySurface(surface);
+}
 
 // void DrawText(SDL_Renderer *renderer, TTF_Font *font, const char *text, float x, float y)
 // {
@@ -206,6 +247,17 @@ void DrawButton(SDL_Renderer *renderer, TTF_Font *font, const SDL_FRect *rect, c
 bool IfCanSnap(float WinX, float WinY, float ActualX,float ActualY){
  //   SDL_Log("%f",sqrt(pow(WinX-ActualX,2)+pow(WinY-ActualY,2)));
     return sqrt(pow(WinX-ActualX,2)+pow(WinY-ActualY,2))<20;
+}
+
+//Sprawdzenie czy wygrana
+bool ifWinner(){
+    for(int i=0;i<TILE_COUNT;i+=1){
+        if(!puzzlePieces[i].locked){
+            return false;
+        }
+    }
+    SDL_Log("Hurra!!");
+    return true;
 }
 
 
@@ -261,6 +313,7 @@ int main(void)
         bool hoverNewGame = isPointInRect(mouseX, mouseY, &buttonNewGame);
         bool hoverContinue = isPointInRect(mouseX, mouseY, &buttonContinue);
         bool hoverExit = isPointInRect(mouseX, mouseY, &buttonExit);
+        bool winGame=false;
         // obsługa event'ów
         SDL_Event event;
         while (SDL_PollEvent(&event))
@@ -281,7 +334,7 @@ int main(void)
                     for (int i = TILE_COUNT - 1; i >= 0; i--)
                     {
                         SDL_FRect *rect = &puzzlePieces[i].dstRect;
-                        if (isPointInRect(mx, my, rect))
+                        if (isPointInRect(mx, my, rect) && !puzzlePieces[i].locked)
                         {
                             puzzlePieces[i].dragging = true;
                             puzzlePieces[i].offsetX = mx - rect->x;
@@ -292,7 +345,7 @@ int main(void)
                     }
                 }
 
-                if (event.type == SDL_EVENT_MOUSE_MOTION && selectedPiece != -1)
+                if (event.type == SDL_EVENT_MOUSE_MOTION && selectedPiece != -1 && !puzzlePieces[selectedPiece].locked)
                 {
                     if (puzzlePieces[selectedPiece].dragging)
                     {
@@ -312,10 +365,17 @@ int main(void)
                     if(IfCanSnap(puzzlePieces[selectedPiece].winX,puzzlePieces[selectedPiece].winY,puzzlePieces[selectedPiece].dstRect.x,puzzlePieces[selectedPiece].dstRect.y)){
                         puzzlePieces[selectedPiece].dstRect.x = puzzlePieces[selectedPiece].winX;
                         puzzlePieces[selectedPiece].dstRect.y = puzzlePieces[selectedPiece].winY;
+                        puzzlePieces[selectedPiece].locked=true;
+
+                        winGame=ifWinner();
                     }
 
                     selectedPiece = -1;
 
+                }
+                if(winGame){
+                    SDL_Log("elo elo");
+                    DrawLabel(renderer, font, &labelWin, "Winner!!");
                 }
             }
 
