@@ -52,7 +52,7 @@ const SDL_FRect BoardDestiny={PUZZLE_START_X,PUZZLE_START_Y,PUZZLE_IMG_WIDTH,PUZ
 const SDL_FRect buttonNewGame = {300.0f, 200.0f, 200.0f, 60.0f};
 const SDL_FRect buttonContinue = {300.0f, 290.0f, 200.0f, 60.0f};
 const SDL_FRect buttonExit = {700.0f, 20.0f, 80.0f, 60.0f};
-const SDL_FRect labelWin = {0.0f,0.0f,600.0f,200.0f}; 
+const SDL_FRect labelWin = {0.0f,0.0f,400.0f,200.0f}; 
 
 // funkcje
 
@@ -193,7 +193,7 @@ void DrawLabel(SDL_Renderer *renderer, TTF_Font *font, const SDL_FRect *rect, co
 
     // Ustaw kolor tekstu
     SDL_Color color = {0, 0, 0, 255}; // Czarny kolor
-    SDL_Surface *surface = TTF_RenderText_Solid(font, label,strlen(label), color); // Poprawione: usunięcie strlen
+    SDL_Surface *surface = TTF_RenderText_Solid(font, label,strlen(label), color); 
     if (!surface)
         return;
 
@@ -374,8 +374,12 @@ int main(void)
 
                 }
                 if(winGame){
+
                     SDL_Log("elo elo");
+                    SDL_RenderClear(renderer);
                     DrawLabel(renderer, font, &labelWin, "Winner!!");
+                    SDL_RenderPresent(renderer);
+
                 }
             }
 
